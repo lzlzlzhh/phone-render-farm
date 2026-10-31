@@ -14,6 +14,23 @@ agent host (container / VM / CI)              Android phone
           └── ffmpeg: frames + audio ──▶ MP4
 ```
 
+## Designed for
+
+This tool is built for one deployment: **an AI agent running inside a container on the same Android phone** (e.g. DeepSeek Harness in a proot/chroot container, Termux, etc.). The container and the phone share the loopback network namespace, so the phone's browser can directly reach the container's `127.0.0.1` ports.
+
+```
+┌─────────── Android phone ───────────┐
+│  ┌─── container ───┐  ┌── browser ─┐│
+│  │ agent + farm    │  │ renders     ││
+│  │ 127.0.0.1:8098  │◀─│ frames      ││
+│  └─────────────────┘  └────────────┘│
+└─────────────────────────────────────┘
+```
+
+The DSHA device bridge (if present) auto-launches the phone's browser. Without it, open the URL manually — everything else works the same.
+
+If your agent runs on a separate machine, you need `--bind 0.0.0.0 --host <LAN-IP>` and the phone must be on the same network. `farm.sh doctor` checks this.
+
 ## Why this exists
 
 Some agent hosts cannot run a headless browser at all. This project was built on an Ubuntu 24.04 container running on an **Android 15/17 kernel**, where every attempt to launch Chromium dies with `SIGTRAP` (exit 133) — the container's own Chromium is fine (zero missing libraries), but the Android kernel does not give it the process/sandbox primitives it needs (`NoNewPrivs: 1`, `Seccomp: 2`).
@@ -24,18 +41,20 @@ The phone's browser has none of these problems — it runs in a process context 
 
 ## Install
 
-As an [agent skill](https://agentskills.io) (Claude Code / DeepSeek Harness / any harness that reads `SKILL.md`):
+Verified on [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) running inside a container on the same Android phone:
 
 ```bash
-git clone <this-repo> ~/.claude/skills/phone-render-farm
+git clone https://github.com/lzlzlzhh/phone-render-farm ~/.agents/skills/phone-render-farm
 ```
 
-Or just use the scripts directly — they need nothing but a POSIX shell and Python:
+Or use the scripts directly — they need nothing but a POSIX shell and Python:
 
 ```bash
-git clone <this-repo> && cd phone-render-farm
+git clone https://github.com/lzlzlzhh/phone-render-farm && cd phone-render-farm
 bash farm.sh doctor
 ```
+
+> The scripts are generic (bash + Python stdlib) and could work with other agent harnesses. Only DSH on-device has been verified — other environments are untested.
 
 **Requirements:** Python 3.8+ (standard library only — no pip installs), bash, an Android device whose browser can reach a port on the host, and `ffmpeg` only if you want MP4 output.
 
